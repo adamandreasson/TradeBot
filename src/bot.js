@@ -1,10 +1,11 @@
-const Discord = require("discord.js");
-const MarketTools = require("./market");
-const Database = require("./database");
-const config = require("./config.json");
+import { Client } from "discord.js";
 
-const client = new Discord.Client();
-const market = new MarketTools.Market();
+import Market from "./market";
+import Database from "./database";
+const config = require("../config.json");
+
+const client = new Client();
+const market = new Market();
 
 client.on("ready", () => {
 	console.log("I am ready!");

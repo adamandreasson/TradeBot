@@ -1,5 +1,5 @@
-function Market() {
-	this.getLatestStockPrice = ticker => {
+class Market {
+	getLatestStockPrice(ticker) {
 		let validTickers = ["TSLA", "AMD"];
 		if (validTickers.indexOf(ticker) < 0) {
 			return null;
@@ -13,7 +13,7 @@ function Market() {
 			return prices[ticker];
 		}
 		return null;
-	};
+	}
 }
 
-module.exports = { Market };
+export default Market;
