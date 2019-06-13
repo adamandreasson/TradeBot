@@ -1,0 +1,32 @@
+{
+  "name": "tradebot",
+  "version": "1.0.0",
+  "description": "A stock trading simulator bot for Discord",
+  "main": "bot.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adamandreasson/TradeBot.git"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "stock",
+    "trading",
+    "crypto",
+    "simulator",
+    "game",
+    "market"
+  ],
+  "author": "Adam Andreasson",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/adamandreasson/TradeBot/issues"
+  },
+  "homepage": "https://github.com/adamandreasson/TradeBot#readme",
+  "dependencies": {
+    "discord.js": "^11.5.1"
+  }
+}
