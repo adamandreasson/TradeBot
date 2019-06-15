@@ -29,6 +29,7 @@
 	},
 	"homepage": "https://github.com/adamandreasson/TradeBot#readme",
 	"dependencies": {
+		"axios": "^0.19.0",
 		"discord.js": "^11.5.1",
 		"mysql2": "^1.6.5"
 	},

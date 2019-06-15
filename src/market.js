@@ -1,18 +1,43 @@
+const axios = require("axios");
+
 class Market {
-	getLatestStockPrice(ticker) {
-		let validTickers = ["TSLA", "AMD"];
-		if (validTickers.indexOf(ticker) < 0) {
-			return null;
+	async getLatestStockPrice(ticker) {
+		let sourceHtml = null;
+		try {
+			const response = await axios.get(
+				"https://finance.yahoo.com/quote/" + ticker
+			);
+			sourceHtml = response.data;
+		} catch (error) {
+			console.error(error);
+			throw "CONNECTION_ERROR";
 		}
 
-		let prices = {
-			TSLA: 210.2,
-			AMD: 30.4
-		};
-		if (prices[ticker] != null) {
-			return prices[ticker];
+		if (sourceHtml == null) {
+			throw "CONNECTION_ERROR";
 		}
-		return null;
+
+		let lines = sourceHtml.split("\n");
+		for (let l in lines) {
+			let line = lines[l];
+			if (line.startsWith("root.App.main")) {
+				let jsonString = line.substring(16, line.length - 1);
+				let json = JSON.parse(jsonString);
+				if (
+					json.context.dispatcher.stores.PageStore.currentPageName != "quote"
+				) {
+					throw "UNKNOWN_TICKER";
+				}
+				let stockData = json.context.dispatcher.stores.QuoteSummaryStore.price;
+				console.log("Market state: ", stockData.marketState);
+				if (stockData.marketState != "OPEN") {
+					throw "MARKET_NOT_OPEN";
+				}
+				let price = stockData.regularMarketPrice.raw;
+				console.log(price);
+				return price;
+			}
+		}
 	}
 }
 

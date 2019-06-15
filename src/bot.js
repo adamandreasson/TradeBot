@@ -12,6 +12,11 @@ client.on("ready", () => {
 	console.log("I am ready!");
 });
 
+function isTickerValid(ticker) {
+	const re = /^[A-Z0-9:.]*$/g;
+	return re.test(ticker);
+}
+
 async function parseBuyCommand(message, params) {
 	if (params.length < 3) {
 		message.channel.send("Incorrect use of command.");
@@ -22,10 +27,35 @@ async function parseBuyCommand(message, params) {
 		message.channel.send("Invalid amount.");
 		return false;
 	}
+	if (!isTickerValid(ticker)) {
+		message.channel.send(
+			"That's a weird ticker format dude... keep it simple."
+		);
+		return false;
+	}
 	let ticker = params[2].toUpperCase();
-	let stockPrice = market.getLatestStockPrice(ticker);
-	if (stockPrice == null) {
-		message.channel.send("Invalid ticker.");
+	let stockPrice = 0;
+	message.channel.send(":incoming_envelope: Processing request...");
+	try {
+		stockPrice = await market.getLatestStockPrice(ticker);
+	} catch (err) {
+		let userResponse = "Something wen't wrong :(";
+		switch (err) {
+			case "CONNECTION_ERROR":
+				userResponse =
+					"Woah I can't handle all these requests rn like wait please";
+				break;
+			case "MARKET_NOT_OPEN":
+				userResponse = "The markets are closed nerd! Go to bed.";
+				break;
+			case "UNKNOWN_TICKER":
+				userResponse = "Wth? " + ticker + " is not a valid stock ticker.";
+		}
+		message.channel.send(":interrobang: " + userResponse);
+		return;
+	}
+	if (stockPrice == 0) {
+		console.log("Uh something's wrong here...");
 		return;
 	}
 	try {
