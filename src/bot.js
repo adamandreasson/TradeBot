@@ -13,7 +13,7 @@ client.on("ready", () => {
 });
 
 function isTickerValid(ticker) {
-	const re = /^[A-Z0-9:.]*$/g;
+	const re = /^[A-Z0-9:.]*$/i;
 	return re.test(ticker);
 }
 
