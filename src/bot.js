@@ -12,7 +12,7 @@ client.on("ready", () => {
 	console.log("I am ready!");
 });
 
-function parseBuyCommand(message, params) {
+async function parseBuyCommand(message, params) {
 	if (params.length < 3) {
 		message.channel.send("Incorrect use of command.");
 		return false;
@@ -28,18 +28,22 @@ function parseBuyCommand(message, params) {
 		message.channel.send("Invalid ticker.");
 		return;
 	}
-	console.log(amount, ticker, message.author.id);
-	message.channel.send(
-		"Bought " + amount + " $" + ticker + " at " + stockPrice
-	);
-	database.buyStock(
-		message.channel.guild.id,
-		message.author.id,
-		ticker,
-		amount
-	);
-	console.log(message.channel.guild.id);
-	console.log(message.author.id);
+	try {
+		let purchaseSuccessful = await database.buyStock(
+			message.channel.guild.id,
+			message.author.id,
+			ticker,
+			amount,
+			stockPrice
+		);
+		if (purchaseSuccessful) {
+			message.channel.send(
+				"Bought " + amount + " $" + ticker + " at " + stockPrice
+			);
+		}
+	} catch (err) {
+		message.channel.send(err);
+	}
 }
 
 client.on("message", message => {
