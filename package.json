@@ -29,7 +29,8 @@
 	},
 	"homepage": "https://github.com/adamandreasson/TradeBot#readme",
 	"dependencies": {
-		"discord.js": "^11.5.1"
+		"discord.js": "^11.5.1",
+		"mysql2": "^1.6.5"
 	},
 	"devDependencies": {
 		"babel-cli": "^6.26.0",

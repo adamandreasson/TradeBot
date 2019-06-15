@@ -6,6 +6,7 @@ const config = require("../config.json");
 
 const client = new Client();
 const market = new Market();
+const database = new Database();
 
 client.on("ready", () => {
 	console.log("I am ready!");
@@ -30,6 +31,12 @@ function parseBuyCommand(message, params) {
 	console.log(amount, ticker, message.author.id);
 	message.channel.send(
 		"Bought " + amount + " $" + ticker + " at " + stockPrice
+	);
+	database.buyStock(
+		message.channel.guild.id,
+		message.author.id,
+		ticker,
+		amount
 	);
 	console.log(message.channel.guild.id);
 	console.log(message.author.id);
