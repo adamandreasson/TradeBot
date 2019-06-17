@@ -115,6 +115,24 @@ class Database {
 		}
 		return wasUpdateSuccessful;
 	}
+
+	async getPortfolio(serverId, userId) {
+		let sql =
+			"SELECT ticker, count FROM holdings WHERE server_id = ? AND user_id = ?";
+		let [rows, fields] = await this.pool.query(sql, [serverId, userId]);
+		if (rows.length == 0) {
+			throw "NO_ACCOUNT";
+		}
+
+		let cash = 0;
+		try {
+			cash = await this.getUserCash(serverId, userId);
+		} catch (err) {}
+
+		let portfolio = { cash: cash, holdings: rows };
+
+		return portfolio;
+	}
 }
 
 export default Database;

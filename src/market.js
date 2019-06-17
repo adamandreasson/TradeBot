@@ -1,7 +1,7 @@
 const axios = require("axios");
 
 class Market {
-	async getLatestStockPrice(ticker) {
+	async getLatestStockQuote(ticker) {
 		let sourceHtml = null;
 		try {
 			const response = await axios.get(
@@ -33,9 +33,13 @@ class Market {
 				if (stockData.marketState != "REGULAR") {
 					throw "MARKET_NOT_OPEN";
 				}
-				let price = stockData.regularMarketPrice.raw;
-				console.log(price);
-				return price;
+				let quote = {
+					symbol: stockData.symbol,
+					price: stockData.regularMarketPrice.raw,
+					changePercent: stockData.regularMarketChangePercent.fmt
+				};
+				console.log(quote);
+				return quote;
 			}
 		}
 	}
