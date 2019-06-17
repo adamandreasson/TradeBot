@@ -30,7 +30,7 @@ class Market {
 				}
 				let stockData = json.context.dispatcher.stores.QuoteSummaryStore.price;
 				console.log("Market state: ", stockData.marketState);
-				if (stockData.marketState != "OPEN") {
+				if (stockData.marketState != "REGULAR") {
 					throw "MARKET_NOT_OPEN";
 				}
 				let price = stockData.regularMarketPrice.raw;

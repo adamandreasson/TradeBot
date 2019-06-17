@@ -77,7 +77,7 @@ async function parseBuyCommand(message, params) {
 }
 
 client.on("message", message => {
-	if (message.content[0] !== "$" || message.content.length < 2) {
+	if (message.content[0] !== "/" || message.content.length < 2) {
 		return;
 	}
 
