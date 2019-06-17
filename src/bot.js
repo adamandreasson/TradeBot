@@ -1,4 +1,4 @@
-import { Client } from "discord.js";
+import { Client, RichEmbed } from "discord.js";
 
 import Market from "./market";
 import Database from "./database";
@@ -35,7 +35,9 @@ async function parseBuyCommand(message, params) {
 	}
 	let ticker = params[2].toUpperCase();
 	let stockPrice = 0;
-	message.channel.send(":incoming_envelope: Processing request...");
+	let tempMessage = await message.channel.send(
+		":incoming_envelope: Processing request..."
+	);
 	try {
 		stockPrice = await market.getLatestStockPrice(ticker);
 	} catch (err) {
@@ -51,11 +53,17 @@ async function parseBuyCommand(message, params) {
 			case "UNKNOWN_TICKER":
 				userResponse = "Wth? " + ticker + " is not a valid stock ticker.";
 		}
-		message.channel.send(":interrobang: " + userResponse);
+		tempMessage.delete();
+		const embed = new RichEmbed()
+			.setTitle("Order error")
+			.setColor(0xff0000)
+			.setDescription(":warning: " + userResponse);
+		message.channel.send(embed);
 		return;
 	}
 	if (stockPrice == 0) {
 		console.log("Uh something's wrong here...");
+		tempMessage.delete();
 		return;
 	}
 	try {
@@ -67,13 +75,28 @@ async function parseBuyCommand(message, params) {
 			stockPrice
 		);
 		if (purchaseSuccessful) {
-			message.channel.send(
-				"Bought " + amount + " $" + ticker + " at " + stockPrice
-			);
+			const embed = new RichEmbed()
+				.setTitle(":white_check_mark: Buy order")
+				.setColor(0x00ff00)
+				.setDescription(
+					message.author +
+						" purchased " +
+						amount +
+						" " +
+						ticker +
+						" at $" +
+						stockPrice
+				);
+			message.channel.send(embed);
 		}
 	} catch (err) {
-		message.channel.send(err);
+		const embed = new RichEmbed()
+			.setTitle(":warning: Order error")
+			.setColor(0xff0000)
+			.setDescription(err);
+		message.channel.send(embed);
 	}
+	tempMessage.delete();
 }
 
 client.on("message", message => {
@@ -95,12 +118,21 @@ client.on("message", message => {
 		return parseSellCommand(message, params);
 	}
 
-	if (action === "portfolio") {
+	if (
+		action === "portfolio" ||
+		action === "money" ||
+		action === "funds" ||
+		action === "account"
+	) {
 		return parsePortfolioCommand(message, params);
 	}
 
 	if (action === "ranking") {
 		return parseRankingCommand(message, params);
+	}
+
+	if (action === "stocks") {
+		return parseHelpCommand(message, params);
 	}
 });
 
