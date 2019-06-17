@@ -40,19 +40,22 @@ class Database {
 		let [rows, fields] = await this.pool.query(sql, [serverId, userId, ticker]);
 		return rows.length > 0;
 	}
-	async insertHoldings(serverId, userId, ticker, amount) {
+	async insertHoldings(serverId, userId, ticker, amount, sumOfPurchase) {
+		sumOfPurchase = sumOfPurchase * 100;
 		let sql =
-			"INSERT INTO holdings (server_id, user_id, ticker, count) VALUES ?";
+			"INSERT INTO holdings (server_id, user_id, ticker, count, total_position) VALUES ?";
 		let [rows, fields] = await this.pool.query(sql, [
-			[[serverId, userId, ticker, amount]]
+			[[serverId, userId, ticker, amount, sumOfPurchase]]
 		]);
 		return rows.affectedRows > 0;
 	}
-	async addToHoldings(serverId, userId, ticker, amount) {
+	async addToHoldings(serverId, userId, ticker, amount, sumOfPurchase) {
+		sumOfPurchase = sumOfPurchase * 100;
 		let sql =
-			"UPDATE holdings SET count = count + ? WHERE server_id = ? AND user_id = ? AND ticker = ?";
+			"UPDATE holdings SET count = count + ?, total_position = total_position + ? WHERE server_id = ? AND user_id = ? AND ticker = ?";
 		let [rows, fields] = await this.pool.query(sql, [
 			amount,
+			sumOfPurchase,
 			serverId,
 			userId,
 			ticker
@@ -103,14 +106,16 @@ class Database {
 				serverId,
 				userId,
 				ticker,
-				amount
+				amount,
+				priceToCharge
 			);
 		} else {
 			wasUpdateSuccessful = await this.insertHoldings(
 				serverId,
 				userId,
 				ticker,
-				amount
+				amount,
+				priceToCharge
 			);
 		}
 		return wasUpdateSuccessful;
@@ -118,11 +123,8 @@ class Database {
 
 	async getPortfolio(serverId, userId) {
 		let sql =
-			"SELECT ticker, count FROM holdings WHERE server_id = ? AND user_id = ?";
+			"SELECT ticker, count, total_position/100 as totalPosition FROM holdings WHERE server_id = ? AND user_id = ?";
 		let [rows, fields] = await this.pool.query(sql, [serverId, userId]);
-		if (rows.length == 0) {
-			throw "NO_ACCOUNT";
-		}
 
 		let cash = 0;
 		try {

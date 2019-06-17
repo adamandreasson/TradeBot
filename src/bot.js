@@ -29,18 +29,38 @@ async function parsePortfolioCommand(message, params) {
 	let tempMessage = await message.channel.send(
 		":incoming_envelope: Processing request..."
 	);
-	const portfolio = await database.getPortfolio(
-		message.channel.guild.id,
-		message.author.id
-	);
+	let portfolio = {};
+	try {
+		portfolio = await database.getPortfolio(
+			message.channel.guild.id,
+			message.author.id
+		);
+	} catch (error) {
+		if (error == "NO_ACCOUNT") {
+			portfolio = { cash: 0, holdings: [] };
+		}
+	} finally {
+		tempMessage.delete();
+	}
 	console.log(portfolio);
 	let formattedHoldings = "";
 	for (let h in portfolio.holdings) {
 		let stock = portfolio.holdings[h];
+		let totalPosition =
+			"$" +
+			parseFloat(stock.totalPosition)
+				.toFixed(0)
+				.toLocaleString();
 		formattedHoldings += stock.count;
 		formattedHoldings += generateSpacing(stock.count, 5);
 		formattedHoldings += stock.ticker;
+		formattedHoldings += generateSpacing(stock.ticker, 6);
+		formattedHoldings += generateSpacing(stock.totalPosition, 9);
+		formattedHoldings += totalPosition;
 		formattedHoldings += "\n";
+	}
+	if (portfolio.holdings.length == 0) {
+		formattedHoldings = "this one empty yeet";
 	}
 	const embed = new RichEmbed()
 		.setTitle(":bar_chart: Portfolio summary")
@@ -48,7 +68,6 @@ async function parsePortfolioCommand(message, params) {
 		.setDescription(message.author + "```\n" + formattedHoldings + "```")
 		.addField(":dollar: Cash on hand", "$" + portfolio.cash.toLocaleString());
 	message.channel.send(embed);
-	tempMessage.delete();
 }
 
 async function parseBuyCommand(message, params) {
