@@ -39,7 +39,7 @@ class Database {
 		return rows[0];
 	}
 	async isUserHoldingTicker(serverId, userId, ticker) {
-		return (await getUserTicketHoldings(serverId, userId, ticker)) != null;
+		return (await this.getUserTicketHoldings(serverId, userId, ticker)) != null;
 	}
 	async insertHoldings(serverId, userId, ticker, amount, sumOfPurchase) {
 		sumOfPurchase = sumOfPurchase * 100;
@@ -48,6 +48,12 @@ class Database {
 		let [rows, fields] = await this.pool.query(sql, [
 			[[serverId, userId, ticker, amount, sumOfPurchase]]
 		]);
+		return rows.affectedRows > 0;
+	}
+	async clearHoldings(serverId, userId, ticker) {
+		let sql =
+			"DELETE FROM holdings WHERE server_id = ? AND user_id = ? AND ticker = ?";
+		let [rows, fields] = await this.pool.query(sql, [serverId, userId, ticker]);
 		return rows.affectedRows > 0;
 	}
 	async updateHoldings(serverId, userId, ticker, changeAmount, sumOfPurchase) {
@@ -129,8 +135,6 @@ class Database {
 			ticker
 		);
 
-		console.log("user holdings ", userHoldings);
-
 		if (userHoldings.count < amount) {
 			amount = userHoldings.count;
 		}
@@ -139,13 +143,19 @@ class Database {
 		let avgPosition = userHoldings.totalPosition / userHoldings.count;
 		let totalHoldingsChange = -avgPosition * amount;
 
-		let wasUpdateSuccessful = await this.updateHoldings(
-			serverId,
-			userId,
-			ticker,
-			-amount,
-			totalHoldingsChange
-		);
+		let wasUpdateSuccessful = false;
+
+		if (amount == userHoldings.count) {
+			wasUpdateSuccessful = await this.clearHoldings(serverId, userId, ticker);
+		} else {
+			wasUpdateSuccessful = await this.updateHoldings(
+				serverId,
+				userId,
+				ticker,
+				-amount,
+				totalHoldingsChange
+			);
+		}
 
 		if (!wasUpdateSuccessful) {
 			throw "Database error: Unable to sell your position.";
