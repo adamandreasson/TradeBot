@@ -12,6 +12,10 @@ client.on("ready", () => {
 	console.log("I am ready!");
 });
 
+function isMarketOpen(marketState) {
+	return marketState == "REGULAR";
+}
+
 function isTickerValid(ticker) {
 	const re = /^[A-Z0-9:.]*$/i;
 	return re.test(ticker);
@@ -23,6 +27,14 @@ function generateSpacing(string, length) {
 		temp += " ";
 	}
 	return temp;
+}
+
+async function sendOrderError(channel, messageString) {
+	const embed = new RichEmbed()
+		.setTitle("Order error")
+		.setColor(0xff0000)
+		.setDescription(":warning: " + message);
+	channel.send(embed);
 }
 
 async function parsePortfolioCommand(message, params) {
@@ -39,20 +51,69 @@ async function parsePortfolioCommand(message, params) {
 		if (error == "NO_ACCOUNT") {
 			portfolio = { cash: 0, holdings: [] };
 		}
-	} finally {
-		tempMessage.delete();
 	}
+	var tickersToRequest = [];
+	for (let t in portfolio.holdings) {
+		tickersToRequest.push(portfolio.holdings[t].ticker);
+	}
+	console.log("getting stock data for all", tickersToRequest);
+	let latestQuotes = await market.getAllStockQuotes(tickersToRequest);
+	tempMessage.delete();
 	console.log(portfolio);
+	console.log(latestQuotes);
+	/**
+	 * Format: TICKER | LAST PRICE $ | DAY CHG % | TOT CHG % | AMOUNT (HOLDING) n | SUM $
+	 */
+	let portfolioSum = 0;
 	let formattedHoldings = "";
+	formattedHoldings += "SYM";
+	formattedHoldings += generateSpacing("SYM", 6);
+	formattedHoldings += generateSpacing("LAST", 9);
+	formattedHoldings += "LAST";
+	formattedHoldings += " ";
+	formattedHoldings += generateSpacing("DAY%", 6);
+	formattedHoldings += "DAY%";
+	formattedHoldings += " ";
+	formattedHoldings += generateSpacing("TOT%", 6);
+	formattedHoldings += "TOT%";
+	formattedHoldings += " ";
+	formattedHoldings += generateSpacing("SUM", 9);
+	formattedHoldings += "SUM";
+	formattedHoldings += " ";
+	formattedHoldings += generateSpacing("AMT", 4);
+	formattedHoldings += "AMT";
+	formattedHoldings += "\n";
 	for (let h in portfolio.holdings) {
 		let stock = portfolio.holdings[h];
+		portfolioSum += parseFloat(stock.totalPosition);
+
 		let totalPosition = "$" + parseInt(stock.totalPosition).toLocaleString();
-		formattedHoldings += stock.count;
-		formattedHoldings += generateSpacing(stock.count, 5);
+		let lastPrice =
+			"$" + latestQuotes[stock.ticker].price.toFixed(1).toLocaleString();
+		let dayChange = latestQuotes[stock.ticker].changePercent;
+		let totalChange =
+			(
+				100 *
+				((latestQuotes[stock.ticker].price * stock.count) /
+					stock.totalPosition -
+					1)
+			).toFixed(1) + "%";
 		formattedHoldings += stock.ticker;
 		formattedHoldings += generateSpacing(stock.ticker, 6);
+		formattedHoldings += generateSpacing(lastPrice, 9);
+		formattedHoldings += lastPrice;
+		formattedHoldings += " ";
+		formattedHoldings += generateSpacing(dayChange, 6);
+		formattedHoldings += dayChange;
+		formattedHoldings += " ";
+		formattedHoldings += generateSpacing(totalChange, 6);
+		formattedHoldings += totalChange;
+		formattedHoldings += " ";
 		formattedHoldings += generateSpacing(totalPosition, 9);
 		formattedHoldings += totalPosition;
+		formattedHoldings += " ";
+		formattedHoldings += generateSpacing(stock.count, 4);
+		formattedHoldings += stock.count;
 		formattedHoldings += "\n";
 	}
 	if (portfolio.holdings.length == 0) {
@@ -62,7 +123,21 @@ async function parsePortfolioCommand(message, params) {
 		.setTitle(":bar_chart: Portfolio summary")
 		.setColor(0x2358b3)
 		.setDescription(message.author + "```\n" + formattedHoldings + "```")
-		.addField(":dollar: Cash on hand", "$" + portfolio.cash.toLocaleString());
+		.addField(
+			":dollar: Cash on hand",
+			"$" + portfolio.cash.toLocaleString(),
+			true
+		)
+		.addField(
+			":bar_chart: Investments",
+			"$" + portfolioSum.toLocaleString(),
+			true
+		)
+		.addField(
+			":moneybag: Total equity",
+			"$" + (portfolio.cash + portfolioSum).toLocaleString(),
+			true
+		);
 	message.channel.send(embed);
 }
 
@@ -96,18 +171,16 @@ async function parseSellCommand(message, params) {
 				userResponse =
 					"Woah I can't handle all these requests rn like wait please";
 				break;
-			case "MARKET_NOT_OPEN":
-				userResponse = "The markets are closed nerd! Go to bed.";
-				break;
 			case "UNKNOWN_TICKER":
 				userResponse = "Wth? " + ticker + " is not a valid stock ticker.";
 		}
 		tempMessage.delete();
-		const embed = new RichEmbed()
-			.setTitle("Order error")
-			.setColor(0xff0000)
-			.setDescription(":warning: " + userResponse);
-		message.channel.send(embed);
+		sendOrderError(message.channel, userResponse);
+		return;
+	}
+	if (!isMarketOpen(stockQuote.marketState)) {
+		tempMessage.delete();
+		sendOrderError(message.channel, "The markets are closed nerd! Go to bed.");
 		return;
 	}
 	if (stockQuote == null) {
@@ -152,11 +225,7 @@ async function parseSellCommand(message, params) {
 			message.channel.send(embed);
 		}
 	} catch (err) {
-		const embed = new RichEmbed()
-			.setTitle(":warning: Order error")
-			.setColor(0xff0000)
-			.setDescription(err);
-		message.channel.send(embed);
+		sendOrderError(message.channel, err);
 	}
 	tempMessage.delete();
 }
@@ -191,18 +260,16 @@ async function parseBuyCommand(message, params) {
 				userResponse =
 					"Woah I can't handle all these requests rn like wait please";
 				break;
-			case "MARKET_NOT_OPEN":
-				userResponse = "The markets are closed nerd! Go to bed.";
-				break;
 			case "UNKNOWN_TICKER":
 				userResponse = "Wth? " + ticker + " is not a valid stock ticker.";
 		}
 		tempMessage.delete();
-		const embed = new RichEmbed()
-			.setTitle("Order error")
-			.setColor(0xff0000)
-			.setDescription(":warning: " + userResponse);
-		message.channel.send(embed);
+		sendOrderError(message.channel, userResponse);
+		return;
+	}
+	if (!isMarketOpen(stockQuote.marketState)) {
+		tempMessage.delete();
+		sendOrderError(message.channel, "The markets are closed nerd! Go to bed.");
 		return;
 	}
 	if (stockQuote == null) {
@@ -230,11 +297,9 @@ async function parseBuyCommand(message, params) {
 			message.channel.send(embed);
 		}
 	} catch (err) {
-		const embed = new RichEmbed()
-			.setTitle(":warning: Order error")
-			.setColor(0xff0000)
-			.setDescription(err);
-		message.channel.send(embed);
+		tempMessage.delete();
+		sendOrderError(message.channel, err);
+		return;
 	}
 	tempMessage.delete();
 }

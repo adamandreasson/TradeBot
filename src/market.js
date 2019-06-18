@@ -1,5 +1,11 @@
 const axios = require("axios");
 
+function sleep(ms) {
+	return new Promise(resolve => {
+		setTimeout(resolve, ms);
+	});
+}
+
 class Market {
 	async getLatestStockQuote(ticker) {
 		let sourceHtml = null;
@@ -29,19 +35,27 @@ class Market {
 					throw "UNKNOWN_TICKER";
 				}
 				let stockData = json.context.dispatcher.stores.QuoteSummaryStore.price;
-				console.log("Market state: ", stockData.marketState);
-				if (stockData.marketState != "REGULAR") {
-					throw "MARKET_NOT_OPEN";
-				}
 				let quote = {
 					symbol: stockData.symbol,
 					price: stockData.regularMarketPrice.raw,
-					changePercent: stockData.regularMarketChangePercent.fmt
+					changePercent: stockData.regularMarketChangePercent.fmt,
+					marketState: stockData.marketState
 				};
 				console.log(quote);
 				return quote;
 			}
 		}
+	}
+
+	async getAllStockQuotes(listOfTickers) {
+		let quotes = {};
+		for (let t in listOfTickers) {
+			let ticker = listOfTickers[t];
+
+			quotes[ticker] = await this.getLatestStockQuote(ticker);
+			await sleep(400);
+		}
+		return quotes;
 	}
 }
 
