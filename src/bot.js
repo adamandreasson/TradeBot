@@ -46,16 +46,12 @@ async function parsePortfolioCommand(message, params) {
 	let formattedHoldings = "";
 	for (let h in portfolio.holdings) {
 		let stock = portfolio.holdings[h];
-		let totalPosition =
-			"$" +
-			parseFloat(stock.totalPosition)
-				.toFixed(0)
-				.toLocaleString();
+		let totalPosition = "$" + parseInt(stock.totalPosition).toLocaleString();
 		formattedHoldings += stock.count;
 		formattedHoldings += generateSpacing(stock.count, 5);
 		formattedHoldings += stock.ticker;
 		formattedHoldings += generateSpacing(stock.ticker, 6);
-		formattedHoldings += generateSpacing(stock.totalPosition, 9);
+		formattedHoldings += generateSpacing(totalPosition, 9);
 		formattedHoldings += totalPosition;
 		formattedHoldings += "\n";
 	}
