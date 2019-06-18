@@ -23,22 +23,23 @@ class Database {
 		}
 		return parseInt(rows[0].cash) / 100;
 	}
-	async subtractPurchaseFromAccount(serverId, userId, amount) {
+	async updateAccount(serverId, userId, amount) {
 		amount = amount * 100;
 		let sql =
-			"UPDATE accounts SET cash = cash - ? WHERE server_id = ? AND user_id = ?";
+			"UPDATE accounts SET cash = cash + ? WHERE server_id = ? AND user_id = ?";
 		let [rows, fields] = await this.pool.query(sql, [amount, serverId, userId]);
 		return rows.changedRows > 0;
 	}
 
-	async getUserHoldings(serverId, userId) {
-		return { holdings: [{ ticker: "TSLA", amount: 2 }] };
+	async getUserTicketHoldings(serverId, userId, ticker) {
+		let sql =
+			"SELECT *, total_position/100 as totalPosition FROM holdings WHERE server_id = ? AND user_id = ? AND ticker = ?";
+		let [rows, fields] = await this.pool.query(sql, [serverId, userId, ticker]);
+		if (rows.length < 1) return null;
+		return rows[0];
 	}
 	async isUserHoldingTicker(serverId, userId, ticker) {
-		let sql =
-			"SELECT * FROM holdings WHERE server_id = ? AND user_id = ? AND ticker = ?";
-		let [rows, fields] = await this.pool.query(sql, [serverId, userId, ticker]);
-		return rows.length > 0;
+		return (await getUserTicketHoldings(serverId, userId, ticker)) != null;
 	}
 	async insertHoldings(serverId, userId, ticker, amount, sumOfPurchase) {
 		sumOfPurchase = sumOfPurchase * 100;
@@ -49,12 +50,12 @@ class Database {
 		]);
 		return rows.affectedRows > 0;
 	}
-	async addToHoldings(serverId, userId, ticker, amount, sumOfPurchase) {
+	async updateHoldings(serverId, userId, ticker, changeAmount, sumOfPurchase) {
 		sumOfPurchase = sumOfPurchase * 100;
 		let sql =
 			"UPDATE holdings SET count = count + ?, total_position = total_position + ? WHERE server_id = ? AND user_id = ? AND ticker = ?";
 		let [rows, fields] = await this.pool.query(sql, [
-			amount,
+			changeAmount,
 			sumOfPurchase,
 			serverId,
 			userId,
@@ -84,10 +85,10 @@ class Database {
 			throw "NO MONEY";
 		}
 
-		let wereFundsReduced = await this.subtractPurchaseFromAccount(
+		let wereFundsReduced = await this.updateAccount(
 			serverId,
 			userId,
-			priceToCharge
+			-priceToCharge
 		);
 
 		if (!wereFundsReduced) {
@@ -102,7 +103,7 @@ class Database {
 
 		let wasUpdateSuccessful = false;
 		if (userHasHoldings) {
-			wasUpdateSuccessful = await this.addToHoldings(
+			wasUpdateSuccessful = await this.updateHoldings(
 				serverId,
 				userId,
 				ticker,
@@ -119,6 +120,48 @@ class Database {
 			);
 		}
 		return wasUpdateSuccessful;
+	}
+
+	async sellStock(serverId, userId, ticker, amount, price) {
+		let userHoldings = await this.getUserTicketHoldings(
+			serverId,
+			userId,
+			ticker
+		);
+
+		console.log("user holdings ", userHoldings);
+
+		if (userHoldings.count < amount) {
+			amount = userHoldings.count;
+		}
+
+		let cashToDeposit = price * amount;
+		let avgPosition = userHoldings.totalPosition / userHoldings.count;
+		let totalHoldingsChange = -avgPosition * amount;
+
+		let wasUpdateSuccessful = await this.updateHoldings(
+			serverId,
+			userId,
+			ticker,
+			-amount,
+			totalHoldingsChange
+		);
+
+		if (!wasUpdateSuccessful) {
+			throw "Database error: Unable to sell your position.";
+		}
+
+		let wereFundsAdded = await this.updateAccount(
+			serverId,
+			userId,
+			cashToDeposit
+		);
+
+		if (!wereFundsAdded) {
+			throw "Database error: Unable to update your account. The money is gone.";
+		}
+
+		return { avgPosition: avgPosition, amountSold: amount };
 	}
 
 	async getPortfolio(serverId, userId) {

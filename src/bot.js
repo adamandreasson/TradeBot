@@ -70,6 +70,101 @@ async function parsePortfolioCommand(message, params) {
 	message.channel.send(embed);
 }
 
+async function parseSellCommand(message, params) {
+	if (params.length < 3) {
+		message.channel.send("Incorrect use of command.");
+		return false;
+	}
+	let amount = parseInt(params[1]);
+	if (amount < 1) {
+		message.channel.send("Invalid amount.");
+		return false;
+	}
+	if (!isTickerValid(ticker)) {
+		message.channel.send(
+			"That's a weird ticker format dude... keep it simple."
+		);
+		return false;
+	}
+	let ticker = params[2].toUpperCase();
+	let stockQuote = null;
+	let tempMessage = await message.channel.send(
+		":incoming_envelope: Processing request..."
+	);
+	try {
+		stockQuote = await market.getLatestStockQuote(ticker);
+	} catch (err) {
+		let userResponse = "Something went wrong :(";
+		switch (err) {
+			case "CONNECTION_ERROR":
+				userResponse =
+					"Woah I can't handle all these requests rn like wait please";
+				break;
+			case "MARKET_NOT_OPEN":
+				userResponse = "The markets are closed nerd! Go to bed.";
+				break;
+			case "UNKNOWN_TICKER":
+				userResponse = "Wth? " + ticker + " is not a valid stock ticker.";
+		}
+		tempMessage.delete();
+		const embed = new RichEmbed()
+			.setTitle("Order error")
+			.setColor(0xff0000)
+			.setDescription(":warning: " + userResponse);
+		message.channel.send(embed);
+		return;
+	}
+	if (stockQuote == null) {
+		console.log("Uh something's wrong here...");
+		tempMessage.delete();
+		return;
+	}
+	try {
+		let orderResult = await database.sellStock(
+			message.channel.guild.id,
+			message.author.id,
+			ticker,
+			amount,
+			stockQuote.price
+		);
+		if (orderResult) {
+			console.log(orderResult.avgPosition, stockQuote.price);
+			let profitPerShare = stockQuote.price - orderResult.avgPosition;
+			let profitPercentage =
+				100 * (stockQuote.price / orderResult.avgPosition - 1);
+			let totalProfit = profitPerShare * orderResult.amountSold;
+			let gainsLoss =
+				":chart_with_upwards_trend: **Total gains:** $" +
+				totalProfit.toLocaleString();
+			let messageColor = 0x00ff00;
+			if (totalProfit < 0) {
+				gainsLoss =
+					":chart_with_downwards_trend: **Total loss:** -$" +
+					(-totalProfit).toLocaleString();
+				messageColor = 0xff0000;
+			}
+			const embed = new RichEmbed()
+				.setTitle(":white_check_mark: Sell order")
+				.setColor(messageColor)
+				.setDescription(
+					`${message.author} sold ${orderResult.amountSold} ${ticker} (${
+						stockQuote.changePercent
+					}) at $${stockQuote.price}\n${gainsLoss} (${profitPercentage.toFixed(
+						2
+					)}%)`
+				);
+			message.channel.send(embed);
+		}
+	} catch (err) {
+		const embed = new RichEmbed()
+			.setTitle(":warning: Order error")
+			.setColor(0xff0000)
+			.setDescription(err);
+		message.channel.send(embed);
+	}
+	tempMessage.delete();
+}
+
 async function parseBuyCommand(message, params) {
 	if (params.length < 3) {
 		message.channel.send("Incorrect use of command.");
