@@ -33,7 +33,7 @@ async function sendOrderError(channel, messageString) {
 	const embed = new RichEmbed()
 		.setTitle("Order error")
 		.setColor(0xff0000)
-		.setDescription(":warning: " + message);
+		.setDescription(":warning: " + messageString);
 	channel.send(embed);
 }
 

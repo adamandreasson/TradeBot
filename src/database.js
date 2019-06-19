@@ -41,15 +41,6 @@ class Database {
 	async isUserHoldingTicker(serverId, userId, ticker) {
 		return (await this.getUserTicketHoldings(serverId, userId, ticker)) != null;
 	}
-	async insertHoldings(serverId, userId, ticker, amount, sumOfPurchase) {
-		sumOfPurchase = sumOfPurchase * 100;
-		let sql =
-			"INSERT INTO holdings (server_id, user_id, ticker, count, total_position) VALUES ?";
-		let [rows, fields] = await this.pool.query(sql, [
-			[[serverId, userId, ticker, amount, sumOfPurchase]]
-		]);
-		return rows.affectedRows > 0;
-	}
 	async clearHoldings(serverId, userId, ticker) {
 		let sql =
 			"DELETE FROM holdings WHERE server_id = ? AND user_id = ? AND ticker = ?";
@@ -68,6 +59,42 @@ class Database {
 			ticker
 		]);
 		return rows.changedRows > 0;
+	}
+	async insertHoldings(serverId, userId, ticker, amount, sumOfPurchase) {
+		sumOfPurchase = sumOfPurchase * 100;
+		let sql =
+			"INSERT INTO holdings (server_id, user_id, ticker, count, total_position) VALUES ?";
+		let [rows, fields] = await this.pool.query(sql, [
+			[[serverId, userId, ticker, amount, sumOfPurchase]]
+		]);
+		return rows.affectedRows > 0;
+	}
+
+	async updateOrInsertHoldings(
+		serverId,
+		userId,
+		ticker,
+		amount,
+		holdingsChange,
+		userHasHoldings
+	) {
+		if (userHasHoldings) {
+			return await this.updateHoldings(
+				serverId,
+				userId,
+				ticker,
+				amount,
+				holdingsChange
+			);
+		} else {
+			return await this.insertHoldings(
+				serverId,
+				userId,
+				ticker,
+				amount,
+				holdingsChange
+			);
+		}
 	}
 	async getCashOrCreateAccount(serverId, userId) {
 		let userFunds = 0;
@@ -107,24 +134,14 @@ class Database {
 			ticker
 		);
 
-		let wasUpdateSuccessful = false;
-		if (userHasHoldings) {
-			wasUpdateSuccessful = await this.updateHoldings(
-				serverId,
-				userId,
-				ticker,
-				amount,
-				priceToCharge
-			);
-		} else {
-			wasUpdateSuccessful = await this.insertHoldings(
-				serverId,
-				userId,
-				ticker,
-				amount,
-				priceToCharge
-			);
-		}
+		let wasUpdateSuccessful = await this.updateOrInsertHoldings(
+			serverId,
+			userId,
+			ticker,
+			amount,
+			priceToCharge,
+			userHasHoldings
+		);
 		return wasUpdateSuccessful;
 	}
 
