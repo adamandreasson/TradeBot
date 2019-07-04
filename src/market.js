@@ -98,7 +98,7 @@ class Market extends EventEmitter {
 			this.fetchLatestMarketState();
 		}
 
-		if (marketHours == 17 && marketMinutes >= 0 && marketMinutes < 3) {
+		if (marketHours == 16 && marketMinutes >= 0 && marketMinutes < 3) {
 			this.fetchLatestMarketState();
 		}
 	}
