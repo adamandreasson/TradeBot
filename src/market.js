@@ -1,4 +1,5 @@
 const axios = require("axios");
+const EventEmitter = require("events");
 
 function sleep(ms) {
 	return new Promise(resolve => {
@@ -6,7 +7,11 @@ function sleep(ms) {
 	});
 }
 
-class Market {
+class Market extends EventEmitter {
+	constructor() {
+		super();
+		this.marketData = { state: null, hoursOffset: null };
+	}
 	async getLatestStockQuote(ticker) {
 		let sourceHtml = null;
 		try {
@@ -42,6 +47,11 @@ class Market {
 					marketState: stockData.marketState,
 					fullName: stockData.shortName
 				};
+				quote.marketHourOffset =
+					json.context.dispatcher.stores.QuoteSummaryStore.quoteType
+						.gmtOffSetMilliseconds /
+					3600 /
+					1000;
 				console.log(quote);
 				return quote;
 			}
@@ -57,6 +67,40 @@ class Market {
 			await sleep(400);
 		}
 		return quotes;
+	}
+
+	async fetchLatestMarketState() {
+		const stockQuote = await this.getLatestStockQuote("^GSPC");
+		const stateChanged = this.marketData.state != stockQuote.marketState;
+
+		this.marketData.state = stockQuote.marketState;
+		this.marketData.hoursOffset = stockQuote.marketHourOffset;
+
+		if (stateChanged) {
+			console.log("New market state: ", this.marketData.state);
+			this.emit("stateChanged");
+		}
+	}
+
+	async refreshMarketData() {
+		if (this.marketData.state == null) {
+			this.fetchLatestMarketState();
+			return;
+		}
+
+		let unixTime = Date.now();
+		let marketTime = unixTime + this.marketData.hoursOffset * 3600 * 1000;
+		let date = new Date(marketTime);
+		let marketHours = date.getUTCHours(),
+			marketMinutes = date.getUTCMinutes();
+
+		if (marketHours == 9 && marketMinutes >= 30 && marketMinutes < 33) {
+			this.fetchLatestMarketState();
+		}
+
+		if (marketHours == 17 && marketMinutes >= 0 && marketMinutes < 3) {
+			this.fetchLatestMarketState();
+		}
 	}
 }
 

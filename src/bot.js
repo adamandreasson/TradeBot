@@ -17,7 +17,7 @@ function isMarketOpen(marketState) {
 }
 
 function isTickerValid(ticker) {
-	const re = /^[A-Z0-9:.^]*$/i;
+	const re = /^[A-Z0-9:.^=]*$/i;
 	return re.test(ticker);
 }
 
@@ -388,22 +388,34 @@ client.on("message", message => {
 });
 
 function minuteTick() {
-	console.log("bong!");
-	console.log(
-		new Date().toLocaleString("en-US", { timeZone: "America/New_York" })
-	);
+	market.refreshMarketData();
+}
+
+function updateUserState(isMarketOpen) {
+	const openPresence = {
+		status: "online",
+		afk: false,
+		game: { name: "stonks", type: "WATCHING" }
+	};
+	const closedPresence = {
+		status: "idle",
+		afk: true,
+		game: { name: "the waiting game", type: "PLAYING" }
+	};
+	let newPresence = openPresence;
+	if (!isMarketOpen) {
+		newPresence = closedPresence;
+	}
+	client.user.setPresence(newPresence).catch(console.error);
 }
 
 client.on("ready", () => {
+	market.on("stateChanged", () => {
+		updateUserState(market.marketData.state == "REGULAR");
+	});
+
 	setInterval(minuteTick, 1000 * 60);
-	client.user
-		.setPresence({
-			status: "idle",
-			afk: true,
-			game: { name: "stonks", type: "WATCHING" }
-		})
-		.then(presence => console.log(presence))
-		.catch(console.error);
+	market.refreshMarketData();
 });
 
 client.login(config.discordToken);
