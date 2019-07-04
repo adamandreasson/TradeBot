@@ -17,7 +17,7 @@ function isMarketOpen(marketState) {
 }
 
 function isTickerValid(ticker) {
-	const re = /^[A-Z0-9:.]*$/i;
+	const re = /^[A-Z0-9:.^]*$/i;
 	return re.test(ticker);
 }
 
@@ -385,6 +385,25 @@ client.on("message", message => {
 	if (action === "quote" || action === "lookup" || action === "price") {
 		return parseQuoteCommand(message, params);
 	}
+});
+
+function minuteTick() {
+	console.log("bong!");
+	console.log(
+		new Date().toLocaleString("en-US", { timeZone: "America/New_York" })
+	);
+}
+
+client.on("ready", () => {
+	setInterval(minuteTick, 1000 * 60);
+	client.user
+		.setPresence({
+			status: "idle",
+			afk: true,
+			game: { name: "stonks", type: "WATCHING" }
+		})
+		.then(presence => console.log(presence))
+		.catch(console.error);
 });
 
 client.login(config.discordToken);
