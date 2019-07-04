@@ -48,9 +48,7 @@ async function parsePortfolioCommand(message, params) {
 			message.author.id
 		);
 	} catch (error) {
-		if (error == "NO_ACCOUNT") {
-			portfolio = { cash: 0, holdings: [] };
-		}
+		portfolio = { cash: 0, holdings: [] };
 	}
 	var tickersToRequest = [];
 	for (let t in portfolio.holdings) {
@@ -141,6 +139,50 @@ async function parsePortfolioCommand(message, params) {
 	message.channel.send(embed);
 }
 
+async function parseQuoteCommand(message, params) {
+	if (params.length < 2) {
+		message.channel.send("Incorrect use of command.");
+		return false;
+	}
+	let ticker = params[1].toUpperCase();
+	if (!isTickerValid(ticker)) {
+		message.channel.send(
+			"That's a weird ticker format dude... keep it simple."
+		);
+		return false;
+	}
+	let stockQuote = null;
+	let tempMessage = await message.channel.send(
+		":incoming_envelope: Processing request..."
+	);
+	try {
+		stockQuote = await market.getLatestStockQuote(ticker);
+	} catch (err) {
+		let userResponse = "Something went wrong :(";
+		switch (err) {
+			case "CONNECTION_ERROR":
+				userResponse =
+					"Woah I can't handle all these requests rn like wait please";
+				break;
+			case "UNKNOWN_TICKER":
+				userResponse = "Wth? " + ticker + " is not a valid stock ticker.";
+		}
+		tempMessage.delete();
+		sendOrderError(message.channel, userResponse);
+		return;
+	}
+
+	const embed = new RichEmbed()
+		.setTitle(
+			":bar_chart: " + stockQuote.fullName + " (" + stockQuote.symbol + ")"
+		)
+		.setColor(0x2358b3)
+		.setDescription(`$${stockQuote.price} (${stockQuote.changePercent} today)`);
+	message.channel.send(embed);
+
+	tempMessage.delete();
+}
+
 async function parseSellCommand(message, params) {
 	if (params.length < 3) {
 		message.channel.send("Incorrect use of command.");
@@ -151,13 +193,13 @@ async function parseSellCommand(message, params) {
 		message.channel.send("Invalid amount.");
 		return false;
 	}
+	let ticker = params[2].toUpperCase();
 	if (!isTickerValid(ticker)) {
 		message.channel.send(
 			"That's a weird ticker format dude... keep it simple."
 		);
 		return false;
 	}
-	let ticker = params[2].toUpperCase();
 	let stockQuote = null;
 	let tempMessage = await message.channel.send(
 		":incoming_envelope: Processing request..."
@@ -240,13 +282,13 @@ async function parseBuyCommand(message, params) {
 		message.channel.send("Invalid amount.");
 		return false;
 	}
+	let ticker = params[2].toUpperCase();
 	if (!isTickerValid(ticker)) {
 		message.channel.send(
 			"That's a weird ticker format dude... keep it simple."
 		);
 		return false;
 	}
-	let ticker = params[2].toUpperCase();
 	let stockQuote = null;
 	let tempMessage = await message.channel.send(
 		":incoming_envelope: Processing request..."
@@ -338,6 +380,10 @@ client.on("message", message => {
 
 	if (action === "stocks") {
 		return parseHelpCommand(message, params);
+	}
+
+	if (action === "quote" || action === "lookup" || action === "price") {
+		return parseQuoteCommand(message, params);
 	}
 });
 

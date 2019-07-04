@@ -39,7 +39,8 @@ class Market {
 					symbol: stockData.symbol,
 					price: stockData.regularMarketPrice.raw,
 					changePercent: stockData.regularMarketChangePercent.fmt,
-					marketState: stockData.marketState
+					marketState: stockData.marketState,
+					fullName: stockData.shortName
 				};
 				console.log(quote);
 				return quote;
